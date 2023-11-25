@@ -1,68 +1,81 @@
 import wikipediaapi
 import openai
 
-openai.api_key = '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'
+openai.api_key = 'OPEN_AI_API_KEY'
 
-wiki_wiki = wikipediaapi.Wikipedia(
-    language='en',
-    extract_format=wikipediaapi.ExtractFormat.WIKI,
-    user_agent='bhavyaa-fetcher/1.0'
-)
-
-def display_sections(page_title):
-    page = wiki_wiki.page(page_title)
-    if not page.exists():
-        print("Page doesn't exist.")
-        return
-
-    print(f"Sections available in '{page_title}':")
+def display_sections(page_name):
+    wiki_wiki = wikipediaapi.Wikipedia('en')
+    page = wiki_wiki.page(page_name)
+    
+    print("Sections available:")
     for index, section in enumerate(page.sections):
         print(f"{index + 1}. {section.title}")
+    
+    return page
 
-def fetch_section_text(page_title, section_number):
-    page = wiki_wiki.page(page_title)
-    if not page.exists():
-        return "Page doesn't exist."
+def fetch_section_text(page, selected_section_index):
+    selected_section = list(page.sections.values())[selected_section_index - 1]
+    return selected_section.text if selected_section.exists() else None
 
-    sections = list(page.sections)
-    if section_number < 1 or section_number > len(sections):
-        return "Invalid section number."
-
-    selected_section = sections[section_number - 1]
-    return selected_section.text
-
-def summarize_text(text):
-    response = openai.Completion.create(
-        engine="text-davinci-003",
-        prompt=f"Summarize the following text: {text}",
-        max_tokens=50
+def summarize_text_with_gpt3(text):
+    prompt_text = f"This is a summarization task:\n{text}\n\nSummary:"
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": prompt_text}
+        ],
+        temperature=0.5,
+        max_tokens=150
     )
-    return response.choices[0].text.strip()
+    return response["choices"][0]["message"]["content"]
 
-def paraphrase_text(text):
-    response = openai.Completion.create(
-        engine="text-davinci-003",
-        prompt=f"Paraphrase the following text: {text}",
-        max_tokens=50
+def paraphrase_text_with_gpt3(text):
+    prompt_text = f"This is a paraphrasing task:\n{text}\n\nParaphrase:"
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": prompt_text}
+        ],
+        temperature=0.7,
+        max_tokens=100
     )
-    return response.choices[0].text.strip()
+    return response["choices"][0]["message"]["content"]
+
+
+def main():
+    page_name = input("Enter the Wikipedia page name: ")
+    
+    page = display_sections(page_name)
+    
+    selected_section_index = int(input("Enter the number of the section you want to summarize: "))
+    
+    selected_section_text = fetch_section_text(page, selected_section_index)
+    
+    summarized_text = summarize_text_with_gpt3(selected_section_text)
+    print("Summarized text:")
+    print(summarized_text)
+    
+    paraphrased_text = paraphrase_text_with_gpt3(summarized_text)
+    print("\nParaphrased text:")
+    print(paraphrased_text)
+    
+def display_sections(page_name):
+    user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/119.0'
+    wiki_wiki = wikipediaapi.Wikipedia(user_agent=user_agent)
+    page = wiki_wiki.page(page_name)
+    
+    print("Sections available:")
+    for index, section in enumerate(page.sections):
+        print(f"{index + 1}. {section.title}")
+    
+    return page
+
+def fetch_section_text(page, selected_section_index):
+    if selected_section_index > 0 and selected_section_index <= len(page.sections):
+        selected_section = page.sections[selected_section_index - 1]
+        if selected_section:
+            return selected_section.text
+    return None
 
 if __name__ == "__main__":
-    # Ask user for the Wikipedia page title
-    page_title = input("Enter the Wikipedia page title: ")
-
-    display_sections(page_title)
-
-    section_number = int(input("Enter the section number to fetch text: "))
-
-    selected_text = fetch_section_text(page_title, section_number)
-    print("\nSelected Section Text:")
-    print(selected_text)
-
-    summarized_text = summarize_text(selected_text)
-    print("\nSummarized Text:")
-    print(summarized_text)
-
-    paraphrased_text = paraphrase_text(summarized_text)
-    print("\nParaphrased Text:")
-    print(paraphrased_text)
+    main()
